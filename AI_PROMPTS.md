@@ -669,3 +669,551 @@ TO DO:
 - Add more information about locators for logging
 
 ---
+
+### Prompt #07 — Automated Test Suite Implementation
+
+**Date:** 2026-11-20
+
+**Context:**
+
+Implement the Splash, Main, and Paywall suite and verify the landscape regression against the supplied APK.
+
+**Prompt:**
+
+# Automated Test Suite Implementation
+
+Act as a Senior QA Automation Engineer with strong expertise in Java, Appium, TestNG, mobile testing, and test automation architecture.
+
+Analyze the existing project structure, framework implementation, TEST_PLAN.md, AGENTS.md, AI_PROMPTS.md, and BUG_REPORTS.md (if available) before making any changes.
+
+Implement a maintainable, reliable, and independent automated test suite using the existing framework.
+
+## 1. General Requirements
+
+- Reuse the existing framework components and Page Objects.
+- Follow the existing architectural and naming conventions.
+- Maintain a clear separation between the Framework Layer and the Test Layer.
+- Prioritize native Appium, Selenium, TestNG, and Java APIs over custom implementations.
+- Do not implement custom solutions when equivalent built-in functionality already exists.
+- Follow SOLID, DRY, KISS, YAGNI, and Clean Code principles.
+- Avoid premature optimization and unnecessary abstractions.
+- Do not introduce additional dependencies unless strictly necessary.
+
+## 2. Test Layer Structure
+
+Create the following test classes:
+
+- SplashTest.java
+- MainTest.java
+- PaywallTest.java
+
+Create a dedicated data package within the Test Layer:
+
+- TestData.java — reusable test data and expected values.
+- TestDataProvider.java — centralized TestNG DataProviders.
+
+Keep application-specific expected values outside the Framework Layer.
+
+## 3. SplashTest
+
+Implement two test methods.
+
+### testSplashScreenContent()
+
+Verify that:
+
+- The Splash Screen is displayed after a cold application launch.
+- The application title matches the expected value.
+- The loading indicator is displayed.
+
+### testSplashToMainScreenTransition()
+
+Verify that:
+
+- The Splash Screen appears after a cold application launch.
+- The Splash Screen disappears.
+- The Main Screen becomes visible within the configured explicit wait timeout.
+
+Use a controlled application relaunch within an already established Appium session.
+
+Prefer native Appium application lifecycle methods, such as terminateApp() and activateApp(), provided that their behavior is suitable for capturing the Splash Screen.
+
+Verify the actual timing and behavior of the Splash Screen. Account for its transient nature without using fixed sleeps, modifying the application, or introducing artificial delays.
+
+## 4. MainTest
+
+Implement three test methods.
+
+### testMainScreenContent()
+
+Verify that:
+
+- The Main Screen is displayed.
+- The toolbar title matches the expected value.
+
+### testEarthItemsList()
+
+Verify that:
+
+- Exactly 11 Earth items are present.
+- All item titles match the expected values.
+- Items are displayed in the correct order, from Earth 1 to Earth 11.
+- No duplicate items are present.
+
+Use SoftAssert where appropriate to report multiple independent discrepancies within the same logical scenario.
+
+Preserve the existing simplified RecyclerView implementation.
+
+The primary test environment is expected to display all 11 Earth items. Verify this assumption before relying on it. Do not reintroduce complex RecyclerView traversal algorithms.
+
+### testDownloadButtonsAvailability()
+
+Verify that:
+
+- Exactly 11 Download buttons are present.
+- Every expected Earth item has an associated Download button.
+- Each Download button is visible and enabled.
+
+Include the corresponding Earth item title in assertion messages.
+
+## 5. PaywallTest
+
+Implement five test methods.
+
+### testPaywallOpensForEarthItem(String itemTitle)
+
+Use a DataProvider containing all 11 Earth item titles.
+
+Verify that:
+
+- The Download button associated with the specified Earth item can be clicked.
+- The Paywall opens successfully.
+
+Each Earth item must be tested independently.
+
+### testPaywallContent()
+
+Verify that:
+
+- The Paywall is displayed.
+- The title matches the expected value.
+- The description matches the expected value.
+- The Subscribe button is available.
+- The Purchase button is available.
+- The Restore Purchases button is available.
+- The Not Now button is available.
+
+Use SoftAssert for independent content and button availability checks.
+
+### testPaywallAction(action, expectedToast)
+
+Use a DataProvider covering:
+
+- Subscribe
+- Purchase
+- Restore Purchases
+
+Prefer Java method references and Consumer<PaywallPage> to avoid duplicated test logic and unnecessary conditional statements.
+
+Include a readable action name in each DataProvider entry.
+
+Verify that:
+
+- The selected Paywall action can be performed.
+- The expected Toast message appears.
+- The Paywall is dismissed.
+- The Main Screen becomes accessible again.
+
+Verify the exact Toast messages against the actual application before defining expected values.
+
+Use the existing ToastAction implementation.
+
+Check the Toast immediately after performing the corresponding action, before waiting for the Paywall to disappear.
+
+Do not perform real purchases or attempt to bypass the intentionally disabled billing functionality.
+
+### testPaywallDismissalAndReopening(dismissAction)
+
+Use a DataProvider covering:
+
+- Not Now
+- Android Back
+- Outside Tap
+
+Prefer Java method references and Consumer<PaywallPage>.
+
+Verify that:
+
+- The selected dismissal action closes the Paywall.
+- The Main Screen becomes accessible again.
+- The Paywall can be reopened successfully.
+
+Each dismissal mechanism must be tested independently.
+
+Reuse the existing GestureAction implementation for outside tapping.
+
+### testPaywallActionsAvailableInLandscapeMode()
+
+Implement a regression test for BUG-001, where the Not Now button is not visible in landscape orientation.
+
+Test scenario:
+
+1. Open the Paywall in portrait orientation.
+2. Rotate the device to landscape orientation.
+3. Wait until the requested orientation is applied.
+4. Verify that the Paywall remains displayed.
+5. Verify that all Paywall actions remain accessible, including Not Now.
+
+Before finalizing the test, investigate whether the missing button is accessible through scrolling.
+
+If the button is accessible through scrolling, adjust the test and report the actual behavior rather than producing a false failure.
+
+If the defect is confirmed:
+
+- Assign the test to the TestNG group "known-bug".
+- Use meaningful assertions that describe the actual functional or usability issue.
+- Reference BUG-001 in the test description.
+- Preserve the genuine failing test result.
+- Do not use artificial Assert.fail() statements.
+- Do not weaken assertions to make the test pass.
+- Do not disable the test.
+
+The device must return to portrait orientation regardless of the test outcome.
+
+## 6. DeviceAction
+
+Extend the Framework Layer with a dedicated DeviceAction class within the device package.
+
+Responsibilities:
+
+- Rotate the device to landscape orientation.
+- Rotate the device to portrait orientation.
+- Retrieve the current screen orientation.
+- Support controlled application relaunch for Splash Screen testing.
+
+Use native Appium APIs wherever available, including:
+
+- rotate()
+- getOrientation()
+- terminateApp()
+- activateApp()
+
+Verify API compatibility with the currently installed Appium Java Client and UiAutomator2 versions.
+
+Use explicit waits to synchronize orientation changes where necessary.
+
+Do not implement custom coordinate-based rotation, shell commands, or custom polling mechanisms when supported Appium APIs can achieve the same result.
+
+Integrate DeviceAction into BaseTest using the existing composition and dependency management conventions.
+
+Add meaningful logging using the existing SLF4J and Logback configuration.
+
+Do not add unrelated device functionality.
+
+## 7. DataProviders and Test Data
+
+Implement three centralized DataProviders:
+
+- earthItems — 11 entries.
+- paywallActions — 3 entries.
+- paywallDismissActions — 3 entries.
+
+Maintain readable and descriptive parameterized test executions.
+
+Keep expected application titles, descriptions, item names, counts, and Toast messages in the Test Layer.
+
+Expected values must not be dynamically derived from the actual application state during test execution.
+
+Do not introduce external JSON, CSV, or YAML test data files for this small test suite.
+
+Disable parallel DataProvider execution for the current single-emulator environment.
+
+## 8. Test Lifecycle Management
+
+Preserve the existing BaseTest lifecycle:
+
+- @BeforeMethod — create an independent AndroidDriver session for each test invocation.
+- @AfterMethod — terminate the driver session and log the test result.
+
+Use test-class-level @BeforeMethod methods to initialize the required Page Objects and prepare the appropriate initial application state.
+
+### SplashTest
+
+Initialize SplashPage and MainPage.
+
+Do not wait for the Main Screen before performing the controlled application relaunch within the test.
+
+### MainTest
+
+Initialize MainPage.
+
+Ensure that the Main Screen loading verification is performed within the relevant test so that an application loading failure is reported as a test failure rather than merely a skipped test.
+
+### PaywallTest
+
+Initialize MainPage and PaywallPage.
+
+Prepare the Main Screen as the initial state.
+
+Do not open the Paywall in @BeforeMethod because opening it is part of the scenarios under test.
+
+Ensure orientation cleanup is performed before driver termination, even when the landscape test fails.
+
+Cleanup failures must not replace or hide the original test failure.
+
+Keep the teardown extensible so that future failure diagnostics can capture the failing application state before orientation restoration and driver termination.
+
+Do not implement failure diagnostics at this stage.
+
+Do not replace per-test sessions with shared class-level sessions.
+
+## 9. Test Quality Requirements
+
+- Use TestNG assertions.
+- Follow the Arrange, Act, Assert pattern.
+- Use descriptive test method names and test descriptions.
+- Include meaningful assertion messages.
+- Use Hard Assertions for mandatory preconditions.
+- Use SoftAssert for logically related independent validations.
+- Always call assertAll() when using SoftAssert.
+- Keep tests independent and individually executable.
+- Do not introduce test execution order dependencies.
+- Do not use dependsOnMethods.
+- Do not use Thread.sleep() or fixed delays.
+- Do not use automatic test retries to hide instability.
+- Do not expose locators or low-level driver operations within test classes.
+- Reuse existing Page Objects and Framework Layer components.
+- Preserve existing logging conventions.
+- Avoid unnecessary inheritance, helper classes, and design patterns.
+
+## 10. Expected Test Coverage
+
+Target the following test suite:
+
+- SplashTest: 2 test methods, 2 executions.
+- MainTest: 3 test methods, 3 executions.
+- PaywallTest: 5 test methods, 19 executions.
+
+Total:
+
+- 3 test classes.
+- 10 test methods.
+- 24 test executions.
+- 23 regular functional test executions.
+- 1 known-defect regression test, subject to defect confirmation.
+
+Support running the regular suite separately from the known-defect test through TestNG groups.
+
+Verify the following Maven commands if BUG-001 is confirmed:
+
+- mvn clean test -DexcludedGroups=known-bug
+- mvn clean test -Dgroups=known-bug
+- mvn clean test
+
+The complete suite must report the genuine failure of a confirmed known defect.
+
+## 11. Validation
+
+After implementation:
+
+- Execute mvn clean test-compile.
+- Resolve compilation issues.
+- Run the regular automated test suite against the configured Android emulator.
+- Run the known-defect test separately.
+- Investigate unexpected failures and potential flaky behavior.
+- Verify that individual test methods can be executed independently.
+- Verify that application sessions are properly terminated.
+- Verify that the device returns to portrait orientation after the landscape test.
+- Verify that temporary exploration code and validation scripts are removed.
+
+Provide a final implementation summary containing:
+
+- Created and modified files.
+- Implemented test methods.
+- Test execution results.
+- Confirmed application defects.
+- Unexpected failures.
+- Identified limitations.
+- Architectural decisions and trade-offs.
+- Any deviations from the requested implementation.
+
+Report actual validation results only.
+
+## 12. Implementation Scope
+
+Implement only the Automated Test Suite and the minimal framework extensions required to support it.
+
+Do not implement:
+
+- Failure Diagnostics.
+- Crash and ANR Detection.
+- AI Failure Analyzer.
+- GitHub Actions.
+- Allure integration.
+- Network testing.
+- Additional device or OS configurations.
+
+Do not refactor existing framework components unless required for test functionality.
+
+Do not commit or push any changes without my approval.
+
+Document this task in AI_PROMPTS.md according to the AI-Assisted Development Documentation rules defined in AGENTS.md.[@MainPage.java](file:///Users/vadymsula/IdeaProjects/home_assignment/src/main/java/com/zipo/interviewproject/automation/pages/MainPage.java)
+
+**Outcome:**
+
+- Added the Splash, Main, and Paywall TestNG classes, with expectations and three serial data providers in the Test Layer. The existing standalone Toast probe was retained and excluded from the default suite.
+- Added `DeviceAction` with Appium cold relaunch and synchronized rotation. Added a pre-termination hook to `BaseTest` so portrait restoration runs with a live session and cleanup errors cannot overwrite an existing test failure.
+- Linked the landscape scenario to BUG-001 and grouped it as `known-bug`. Rotating the open dialog returned to Main. After reopening in landscape, Not Now had only a 21-pixel visible strip. An in-dialog scroll did not reveal more of it, and tapping the exposed portion did dismiss the reopened dialog.
+
+**Changed Files:**
+
+- `src/test/java/com/zipo/interviewproject/automation/tests/SplashTest.java`
+- `src/test/java/com/zipo/interviewproject/automation/tests/MainTest.java`
+- `src/test/java/com/zipo/interviewproject/automation/tests/PaywallTest.java`
+- `src/test/java/com/zipo/interviewproject/automation/data/TestData.java`
+- `src/test/java/com/zipo/interviewproject/automation/data/TestDataProvider.java`
+- `src/main/java/com/zipo/interviewproject/automation/device/DeviceAction.java`
+- `src/main/java/com/zipo/interviewproject/automation/base/BaseTest.java`
+- `src/main/java/com/zipo/interviewproject/automation/pages/MainPage.java`
+- `pom.xml`
+- `AI_PROMPTS.md`
+
+**Validation:**
+
+- `mvn clean test-compile` passed on JDK 17. Powered the suite with Appium 3.9.1, Appium Java Client 10.1.1, and UiAutomator2 8.6.0 on the preconfigured Pixel 7 Android 14 emulator.
+- In live exploration, native activation returned in about 0.63–0.74 seconds and the next observable Splash hierarchy contained the title and displayed spinner. Verified 11 titles and Download buttons in the portrait viewport and confirmed the three exact simulated action Toasts before setting the expected values.
+- The first regular run passed 22 scenarios before an ADB API-level timeout blocked session creation for the final test. The first group-only run also exposed TestNG's group filtering of the Paywall initializer. The initializer now runs under group filtering and checks that the driver session was created.
+- Later attempts encountered UiAutomator2 accessibility timeouts and a blocking Android System UI dialog. Recovered the emulator and Appium service, then cleared the system dialog. Main readiness was moved from Paywall configuration into each scenario to avoid a cascade of configuration skips.
+- `mvn clean test` executed all 24 cases and reported 21 passes, the genuine BUG-001 failure, and two Main readiness timeouts before the Not Now and Earth 8 actions. All 24 sessions quit successfully.
+- The corrected `mvn clean test -Dgroups=known-bug` executed one case and failed because rotation closed the open Paywall. Confirmed portrait restoration before successful session termination. Both runs ended with Android rotation set to portrait and an empty ADB forward list.
+- Ran `SplashTest#testSplashScreenContent`, `MainTest#testEarthItemsList`, and `PaywallTest#testPaywallContent` separately. All three passed after emulator recovery.
+- The final `mvn clean test -DexcludedGroups=known-bug` passed all 23 cases, including the scenarios that timed out in the full run. All 23 sessions quit successfully, the ADB forward list was empty, and the emulator remained in portrait.
+- Validation covered the primary Android 14 emulator. Removed the temporary exploration and validation scripts.
+
+**Human Review & Comments:**
+
+*Reviewed*
+
+TO DO
+
+- Refactor changes in Main Page according to simpler implementation
+- Remove a duplicated logic for tests
+
+---
+
+### Prompt #08 — TestNG Suite Configuration
+
+**Date:** 2026-11-20
+
+**Context:**
+
+Add named TestNG suite entry points for the current mobile tests.
+
+**Prompt:**
+
+# TestNG Suite Configuration
+
+Act as a Senior QA Automation Engineer experienced in Java, TestNG, Appium, Maven, and CI/CD.
+
+Review the existing test structure, pom.xml, AGENTS.md, and AI_PROMPTS.md.
+
+## Objective
+
+Introduce TestNG XML suites to provide centralized and flexible test execution management for local development and future CI/CD integration.
+
+## Requirements
+
+Create the following files under `src/test/resources/suites/`:
+
+### regression.xml
+
+- Suite name: Mobile Regression Suite.
+- Include all functional test classes.
+- Exclude the `known-bug` group.
+- Expected test executions: 22.
+
+### known-bugs.xml
+
+- Suite name: Known Bugs Suite.
+- Include only tests belonging to the `known-bug` group.
+- Expected test executions: 1.
+
+### full-suite.xml
+
+- Suite name: Full Mobile Test Suite.
+- Include all automated tests without group exclusions.
+- Expected test executions: 23.
+
+## Implementation Guidelines
+
+- Use native TestNG XML configuration.
+- Use package-based test discovery instead of explicitly listing test classes.
+- Disable parallel execution because the current environment uses a single Android emulator.
+- Preserve existing test isolation and lifecycle management.
+- Ensure compatibility with the existing TestNG and Maven Surefire versions.
+- Use standard TestNG XML conventions.
+- Keep the configuration simple and extensible.
+- Do not introduce additional dependencies, Maven profiles, or custom execution mechanisms.
+- Do not modify pom.xml unless strictly necessary.
+- Preserve the ability to execute individual test classes and methods.
+- Preserve the existing `known-bug` group behavior.
+
+## Execution Commands
+
+Ensure the suites can be executed using the following commands:
+
+Regression suite:
+
+`mvn clean test -Dsurefire.suiteXmlFiles=src/test/resources/suites/regression.xml`
+
+Known bugs suite:
+
+`mvn clean test -Dsurefire.suiteXmlFiles=src/test/resources/suites/known-bugs.xml`
+
+Full suite:
+
+`mvn clean test -Dsurefire.suiteXmlFiles=src/test/resources/suites/full-suite.xml`
+
+## Validation
+
+- Validate the XML configuration.
+- Verify suite discovery and group filtering.
+- Verify compatibility with Maven Surefire.
+- Verify that existing TestNG lifecycle methods are executed correctly under group filtering.
+- Execute `mvn clean test-compile`.
+- Avoid unnecessary full test executions at this stage. Full runtime validation will be performed separately.
+
+## Scope Restrictions
+
+- Do not modify existing test scenarios.
+- Do not refactor framework components.
+- Do not attempt to fix the existing SplashTest instability as part of this task.
+- Do not implement TestNG listeners, failure diagnostics, or CI/CD integration yet.
+- Do not disable or modify known-defect tests.
+- Do not commit or push changes.
+
+Document the task in AI_PROMPTS.md according to the rules defined in AGENTS.md.
+
+Provide a concise implementation summary, including created files, validation results, and any limitations or deviations from the requirements.[@.gitkeep](file:///Users/vadymsula/IdeaProjects/home_assignment/src/test/resources/.gitkeep)
+
+**Outcome:**
+
+Added three serial, package-discovered XML suites using native TestNG group filters and the existing Surefire option.
+
+**Changed Files:**
+
+- `src/test/resources/suites/regression.xml`
+- `src/test/resources/suites/known-bugs.xml`
+- `src/test/resources/suites/full-suite.xml`
+- `AI_PROMPTS.md`
+
+**Validation:**
+
+- `mvn clean test-compile` passed on JDK 17.
+- Surefire 3.5.5 with TestNG 7.12.0 parsed and discovered 22 regression, 1 known-bug, and 23 full-suite invocations in native dry runs. An explicit `-Dtest=MainTest#testMainScreenContent` selected one method despite a suite XML argument.
+- The live known-bug-only run reached BUG-004 and failed at the existing Paywall visibility wait after rotation. The filtered setup created a driver and initialized the pages. Teardown restored portrait before successfully terminating the session.
+- Regression and full-suite validation used dry runs, with live runtime validation deferred.
+
+**Human Review & Comments:**
+
+---

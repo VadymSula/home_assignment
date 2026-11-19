@@ -44,21 +44,31 @@ public final class MainPage extends BasePage {
         return element.getText(toolbarTitle);
     }
 
-    /** Returns item titles available in the current UI hierarchy. */
+    /**
+     * Returns item titles available in the current UI hierarchy.
+     */
     public List<String> getEarthItemTitles() {
         return earthItemTitles.stream()
                 .map(element::getText)
                 .toList();
     }
 
-    /** Counts item titles available in the current UI hierarchy. */
+    /**
+     * Counts item titles available in the current UI hierarchy.
+     */
     public int getEarthItemCount() {
         return earthItemTitles.size();
     }
 
-    /** Counts Download buttons available in the current UI hierarchy. */
+    /**
+     * Counts Download buttons available in the current UI hierarchy.
+     */
     public int getDownloadButtonCount() {
         return downloadButtons.size();
+    }
+
+    public boolean isDownloadButtonPresent(String itemTitle) {
+        return element.isElementPresent(downloadButtonFor(itemTitle));
     }
 
     public boolean isDownloadButtonVisible(String itemTitle) {
@@ -75,17 +85,23 @@ public final class MainPage extends BasePage {
 
     public void clickDownloadButton(String itemTitle) {
         scrollToEarthItem(itemTitle);
+
         element.click(wait.waitForElementToBeClickable(
                 downloadButtonFor(itemTitle)));
     }
 
     private static By downloadButtonFor(String itemTitle) {
-        return AppiumBy.androidUIAutomator(earthTitleSelector(itemTitle)
-                + ".fromParent(new UiSelector().resourceId(\"" + DOWNLOAD_ID + "\"))");
+        return AppiumBy.androidUIAutomator(
+                "%s.fromParent(new UiSelector().resourceId(\"%s\"))"
+                        .formatted(earthTitleSelector(itemTitle), DOWNLOAD_ID));
     }
 
     private static String earthTitleSelector(String itemTitle) {
-        String escapedTitle = itemTitle.replace("\\", "\\\\").replace("\"", "\\\"");
-        return "new UiSelector().resourceId(\"" + ITEM_TITLE_ID + "\").text(\"" + escapedTitle + "\")";
+        String escapedTitle = itemTitle
+                .replace("\\", "\\\\")
+                .replace("\"", "\\\"");
+
+        return "new UiSelector().resourceId(\"%s\").text(\"%s\")"
+                .formatted(ITEM_TITLE_ID, escapedTitle);
     }
 }
