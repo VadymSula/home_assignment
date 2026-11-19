@@ -350,3 +350,322 @@ Document this task in AI_PROMPTS.md according to the AI-Assisted Development Doc
 *Reviewed and approved. No changes required*
 
 ---
+
+### Prompt #04 — Android Application Exploration and Page Objects
+
+**Date:** 2026-11-19
+
+**Context:**
+
+Explore the supplied APK through Appium on the local emulator, then implement the Splash, Main, and Paywall Page Objects using the observed UI hierarchy.
+
+**Prompt:**
+
+Act as a Senior QA Automation Engineer with expertise in Java and Appium.
+
+Analyze TEST_PLAN.md, AGENTS.md, and the existing framework implementation before making any changes.
+
+### 1. Application Exploration
+
+Explore the Android application using the locally running Appium Server and Android emulator.
+
+- Use the existing framework configuration where possible.
+- Use Appium getPageSource() to analyze the actual UI hierarchy.
+- Verify resource IDs, content descriptions, element attributes, and parent-child relationships.
+- Explore all three application screens and their available interactions.
+- Capture the Splash Screen through a controlled application relaunch within an active Appium session.
+- Verify the behavior of all Paywall actions, including transient Toast messages.
+- Do not perform real purchases.
+- Do not invent locators or assume application behavior without verification.
+
+If an element cannot be inspected or verified, report it as a limitation.
+
+### 2. Page Objects
+
+Implement the following Page Objects within the existing pages package.
+
+**SplashPage**
+
+- Application title.
+- Loading indicator.
+- Splash Screen identification.
+- Splash Screen visibility and disappearance.
+- Support for verifying the transition to the Main Screen.
+
+**MainPage**
+
+- Main Screen identification.
+- Toolbar title.
+- Earth items collection.
+- Earth item titles.
+- Download buttons collection.
+- Ability to retrieve all Earth item titles.
+- Ability to retrieve the number of Earth items and Download buttons.
+- Ability to check Download button visibility and availability.
+- Ability to click the Download button associated with a specific Earth item.
+
+Do not declare individual WebElement fields for every Earth item. Use collections and parameterized locators where appropriate.
+
+**PaywallPage**
+
+- Paywall identification.
+- Title.
+- Description.
+- Subscribe button.
+- Purchase button.
+- Restore Purchases button.
+- Not Now button.
+- Toast messages.
+- Paywall visibility and disappearance.
+- Methods for interacting with all available Paywall actions.
+- Ability to dismiss the Paywall using Android Back and by tapping outside the dialog.
+
+### 3. Locator Strategy
+
+Prioritize locator strategies in the following order:
+
+1. Resource ID.
+2. Accessibility ID.
+3. Android UIAutomator.
+4. Class Name, where sufficiently specific.
+5. XPath, only when more reliable alternatives are unavailable.
+
+Additional requirements:
+
+- Use @AndroidFindBy for statically declared UI elements.
+- Use WebElement and List&lt;WebElement&gt; fields.
+- Use AppiumBy for dynamic locators where necessary.
+- Prefer stable, unique, and descriptive locators.
+- Avoid absolute XPath, hardcoded coordinates, and fragile positional locators.
+- Verify locator uniqueness where applicable.
+- Ensure that locators do not depend on a specific screen resolution or device model.
+
+### 4. Framework Integration
+
+- Extend the existing BasePage.
+- Reuse ElementAction and WaitAction.
+- Keep explicit waits transparent and controlled by Page Objects.
+- Do not duplicate existing framework functionality.
+- Keep locators private and expose meaningful public methods.
+- Keep assertions outside Page Objects.
+- Return actual application data rather than hardcoded expected values.
+- Do not use Thread.sleep(), implicit waits, or @CacheLookup.
+- Avoid unnecessary abstractions.
+- Follow SOLID, DRY, KISS, and Clean Code principles.
+
+### 5. Implementation Scope
+
+Implement only the Page Object Layer at this stage.
+
+- Do not implement automated test scenarios yet.
+- Do not implement Failure Diagnostics, AI Failure Analyzer, or CI/CD.
+- Do not introduce additional dependencies.
+- Do not modify existing framework components unless strictly necessary.
+- Clean up temporary exploration scripts and Appium sessions created during this task.
+- Do not commit or push any changes without my approval.
+
+### 6. Validation
+
+After implementation:
+
+- Verify the implemented locators against the actual application.
+- Execute `mvn clean test-compile`.
+- Resolve compilation issues.
+- Provide a summary of the implemented Page Objects and their public methods.
+- Explain non-trivial locator decisions.
+- Report any discovered application issues, limitations, and unverified elements.
+
+Do not proceed to automated test implementation without my approval.
+
+Document this task in AI_PROMPTS.md according to the AI-Assisted Development Documentation rules defined in AGENTS.md.[@SplashPage.java](file:///Users/vadymsula/IdeaProjects/home_assignment/src/main/java/com/zipo/interviewproject/automation/pages/SplashPage.java)
+
+**Outcome:**
+
+- Implemented SplashPage, MainPage, and PaywallPage with the existing BasePage, ElementAction, and WaitAction.
+- Used screen-specific resource IDs and scoped toolbar and row selectors. MainPage reads all rows by traversing the RecyclerView and leaves the list at the top.
+- Added Paywall interactions and dismissal using Not Now, Android Back, or an outside tap calculated from live window bounds and system bars. Toast texts are read from Appium XML.
+
+**Changed Files:**
+
+- `src/main/java/com/zipo/interviewproject/automation/pages/SplashPage.java`
+- `src/main/java/com/zipo/interviewproject/automation/pages/MainPage.java`
+- `src/main/java/com/zipo/interviewproject/automation/pages/PaywallPage.java`
+- `AI_PROMPTS.md`
+- `artifacts/ui-exploration/splash.png` (local ignored artifact)
+
+**Validation:**
+
+- Explored the matching checkout APK on a Pixel 7 emulator running Android 14 / API 34 with Appium 3.9.1. Checked resource IDs, content descriptions, attributes, and relationships in `getPageSource()` and verified the selectors in live Appium sessions.
+- Captured the Splash title and loading indicator during a controlled relaunch in an active session and verified the transition to Main. A transient Splash title lookup raced the transition during an initial run. Reducing the idle timeout in an exploration session allowed the Page Object to read transient Splash state. The screenshot was captured while both Splash IDs were present.
+- Retrieved 11 Earth titles, 11 rows, and 11 Download buttons in portrait and landscape. All 11 Download buttons opened the Paywall in portrait. Verified scrolling to the offscreen Earth 11 in landscape.
+- Subscribe, Purchase, and Restore Purchases each dismissed the Paywall and produced their respective simulated no-op Toasts. Verified dismissal by Not Now, Android Back, and tapping outside. The outside tap worked in both orientations.
+- UiAutomator2 exposed Toast nodes in XML. Element commands on those nodes returned stale references, and the retained texts sometimes included the app label. Android 16 / API 36 was outside the observed environment.
+- Corrected the initial chained-locator annotation type mismatch. The final `mvn clean test-compile` passed on JDK 17. Confirmed all exploration sessions were closed and portrait orientation was restored. Removed temporary exploration scripts and captures from the scratch directory.
+
+**Human Review & Comments:**
+
+*Reviewed*
+
+TO DO:
+
+- Extract Toast-related functionality into a dedicated ToastAction class.
+- Extract gesture-related functionality into a dedicated GestureAction class.
+- Improve Toast message synchronization to ensure reliable detection and retrieval of transient messages.
+---
+
+### Prompt #05 — Paywall Toast and Gesture Refactoring
+
+**Date:** 2026-11-19
+
+**Context:**
+
+Move reusable Toast and gesture behavior out of the Paywall Page Object and synchronize retrieval with Toast detection.
+
+**Prompt:**
+
+Refactor the existing PaywallPage to improve Separation of Concerns, reusability, and maintainability.
+
+- Extract Toast-related functionality into a dedicated ToastAction class within the elements package.
+- Extract gesture-related functionality into a dedicated GestureAction class within the gestures package.
+- Integrate both components into BasePage using composition.
+- Improve Toast message synchronization to ensure reliable detection and retrieval of transient messages.
+- Preserve existing functionality and verified locators.
+- Follow the existing architectural and naming conventions.
+- Avoid unnecessary abstractions and additional dependencies.
+- Keep Page Objects focused on screen-specific behavior.
+
+After refactoring, verify compilation and validate the affected functionality against the running application.
+
+Do not commit or push any changes without my approval.
+
+Document this task in AI_PROMPTS.md according to the AI-Assisted Development Documentation rules defined in AGENTS.md.[@BaseTest.java](file:///Users/vadymsula/IdeaProjects/home_assignment/src/main/java/com/zipo/interviewproject/automation/base/BaseTest.java)
+
+**Outcome:**
+
+- Composed `ToastAction` and `GestureAction` in `BasePage` and delegated Paywall operations to them. Preserved the Paywall control and dialog locators.
+- Synchronized exact-text detection and retrieval by returning the immutable Appium XML snapshot that satisfied the wait. The immediate getter still reads the current UI. A matching Toast still retained from an earlier action can satisfy the wait.
+
+**Changed Files:**
+
+- `src/main/java/com/zipo/interviewproject/automation/elements/ToastAction.java`
+- `src/main/java/com/zipo/interviewproject/automation/gestures/GestureAction.java`
+- `src/main/java/com/zipo/interviewproject/automation/pages/BasePage.java`
+- `src/main/java/com/zipo/interviewproject/automation/pages/PaywallPage.java`
+- `src/main/java/com/zipo/interviewproject/automation/waits/WaitAction.java`
+- `AI_PROMPTS.md`
+
+**Validation:**
+
+- `mvn clean test-compile` passed on JDK 17.
+- On the local Pixel 7 emulator, verified exact Toast detection for Subscribe, Purchase, and Restore Purchases, and confirmed the returned snapshot was still readable after the live Toast expired.
+- Verified outside dismissal in portrait and landscape, restored the original orientation, and closed the temporary Appium session.
+
+**Human Review & Comments:**
+*Reviewed*
+
+TO DO:
+
+- To refactor an XML-based variant of the method to work with Toast.
+
+---
+
+### Prompt #06 — Centralized Framework Logging
+
+**Date:** 2026-11-19
+
+**Context:**
+
+Configure a single logging provider and instrument the framework's lifecycle and operations.
+
+**Prompt:**
+
+Integrate centralized logging into the existing mobile test automation framework using SLF4J and Logback.
+
+### Requirements
+
+- Add compatible SLF4J and Logback dependencies to pom.xml.
+- Configure logging through logback.xml in src/main/resources.
+- Resolve the existing SLF4J provider warning.
+- Use parameterized logging instead of string concatenation.
+- Use private static final Logger fields.
+- Include timestamps, log levels, thread names, and class names in the logging output.
+
+### Logging Scope
+
+Add meaningful logging to the existing framework components:
+
+- FrameworkConfig
+- DriverFactory
+- BaseTest
+- ElementAction
+- WaitAction
+- GestureAction
+- ToastAction
+
+### Logging Levels
+
+- DEBUG — element interactions, explicit waits, gesture operations, and Toast detection.
+- INFO — test execution lifecycle, driver session creation and termination.
+- WARN — recoverable issues and unexpected but non-critical behavior.
+- ERROR — critical framework failures.
+
+### Constraints
+
+- Do not introduce unnecessary logging abstractions or custom logger wrappers.
+- Avoid excessive and duplicate logging.
+- Do not log individual polling attempts during explicit waits.
+- Do not log sensitive information.
+- Do not suppress exceptions.
+- Preserve existing functionality and architectural conventions.
+- Do not modify Page Objects unless necessary.
+- Do not implement automated test scenarios, failure diagnostics, or AI integration at this stage.
+- Follow SOLID, DRY, KISS, YAGNI, and Clean Code principles.
+
+### Validation
+
+- Verify dependency compatibility.
+- Ensure that only one SLF4J provider is present.
+- Execute `mvn clean test-compile`.
+- Verify logging output during an actual application session.
+- Report all changed files, validation results, and identified limitations.
+
+Do not commit or push any changes without my approval.
+
+Document this task in AI_PROMPTS.md according to the AI-Assisted Development Documentation rules defined in AGENTS.md.[@AI_PROMPTS.md](file:///Users/vadymsula/IdeaProjects/home_assignment/AI_PROMPTS.md)
+
+**Outcome:**
+
+- Pinned SLF4J 2.0.19 and Logback 1.6.8. Configured timestamped console output with INFO as the framework default and DEBUG available through `framework.log.level`.
+- Added parameterized framework logging at operation boundaries. Failure messages omit exception payloads and existing exceptions still propagate.
+
+**Changed Files:**
+
+- `pom.xml`
+- `src/main/resources/logback.xml`
+- `src/main/java/com/zipo/interviewproject/automation/config/FrameworkConfig.java`
+- `src/main/java/com/zipo/interviewproject/automation/driver/DriverFactory.java`
+- `src/main/java/com/zipo/interviewproject/automation/base/BaseTest.java`
+- `src/main/java/com/zipo/interviewproject/automation/elements/ElementAction.java`
+- `src/main/java/com/zipo/interviewproject/automation/waits/WaitAction.java`
+- `src/main/java/com/zipo/interviewproject/automation/gestures/GestureAction.java`
+- `src/main/java/com/zipo/interviewproject/automation/elements/ToastAction.java`
+- `AI_PROMPTS.md`
+
+**Validation:**
+
+- Maven resolved the pinned versions without dependency conflicts. `mvn clean test-compile` passed on JDK 17.
+- The resolved runtime classpath exposed one SLF4J provider, Logback. The live run produced no provider warning.
+- Initial UI checks timed out while an emulator launcher error dialog blocked Main. Dismissing the dialog and explicitly relaunching the supplied APK allowed the live check to complete.
+- Verified timestamp, level, thread, and class output across all seven components during a driver lifecycle, simulated Subscribe Toast, and outside tap. Also confirmed WARN and ERROR output for duplicate session creation and invalid configuration, with the original exceptions propagated. The configuration sentinel, emulator serial, and Toast payload did not appear in the log.
+- Closed the temporary session and removed the local validation harness. Live verification used the Android 14 emulator and console output.
+
+**Human Review & Comments:**
+
+*Reviewed*
+
+TO DO:
+- Remove a code duplication
+- Add test results status for logging
+- Add more information about locators for logging
+
+---
