@@ -4,6 +4,7 @@ import com.zipo.interviewproject.automation.base.BaseTest;
 import com.zipo.interviewproject.automation.data.TestData;
 import com.zipo.interviewproject.automation.pages.MainPage;
 import io.qameta.allure.Feature;
+import org.openqa.selenium.NoSuchElementException;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import org.testng.asserts.SoftAssert;
@@ -34,8 +35,10 @@ public class MainTest extends BaseTest {
                     "Main Screen should be visible after launch");
         });
 
-        step("Verify the toolbar title", () -> assertEquals(mainPage.getToolbarTitle(),
-                TestData.APPLICATION_TITLE, "Incorrect Main Screen toolbar title"));
+        step("Verify the toolbar title", () ->
+                assertEquals(mainPage.getToolbarTitle(),
+                        TestData.APPLICATION_TITLE,
+                        "Incorrect Main Screen toolbar title"));
     }
 
     @Test(description = "Verify Earth items count, titles, order and uniqueness")
@@ -72,6 +75,15 @@ public class MainTest extends BaseTest {
                 "Incorrect Download button count");
 
         for (String title : TestData.EARTH_ITEM_TITLES) {
+            try {
+                mainPage.scrollToEarthItem(title);
+            } catch (NoSuchElementException exception) {
+                softAssert.fail(
+                        title + " could not be located in the Earth items list",
+                        exception);
+                continue;
+            }
+
             softAssert.assertTrue(mainPage.isDownloadButtonPresent(title),
                     title + " Download button should be present");
 

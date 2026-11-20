@@ -6,6 +6,7 @@ import io.appium.java_client.AppiumDriver;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Rectangle;
 import org.openqa.selenium.WebElement;
+import org.openqa.selenium.remote.RemoteWebElement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -13,11 +14,16 @@ import java.util.Map;
 
 public final class GestureAction {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(GestureAction.class);
+    private static final Logger LOGGER =
+            LoggerFactory.getLogger(GestureAction.class);
+
     private static final int MAX_SEARCH_SWIPES = 10;
+
     public static final String LEFT = "left";
     public static final String TOP = "top";
     public static final String WIDTH = "width";
+    public static final String UP = "up";
+    public static final String DOWN = "down";
 
     private final AppiumDriver driver;
     private final ElementAction element;
@@ -25,6 +31,31 @@ public final class GestureAction {
     public GestureAction(AppiumDriver driver, ElementAction element) {
         this.driver = driver;
         this.element = element;
+    }
+
+    public boolean scroll(String containerId,
+                          String direction,
+                          double percent) {
+
+        RemoteWebElement container = (RemoteWebElement)
+                driver.findElement(By.id(containerId));
+
+        LOGGER.debug("Scrolling container {} in {} direction",
+                containerId, direction);
+
+        Object result = driver.executeScript("mobile: scrollGesture",
+                Map.of(
+                        "elementId", container.getId(),
+                        "direction", direction,
+                        "percent", percent
+                ));
+
+        if (result instanceof Boolean canScrollMore) {
+            return canScrollMore;
+        }
+
+        throw new IllegalStateException(
+                "Unable to determine whether container can scroll further");
     }
 
     public void scrollIntoView(String containerId, String targetSelector) {
