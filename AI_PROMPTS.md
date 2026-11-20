@@ -2278,3 +2278,185 @@ TO DO:
 - Change the model for AI-analysis
 
 ---
+
+### Prompt #11 — GitHub Actions CI/CD Integration
+
+**Date:** 2026-11-20
+
+**Context:**
+
+Run the existing Android TestNG suites on two GitHub-hosted emulator configurations with separate reports and diagnostics. Reuse the framework's OpenRouter integration for explicitly enabled manual runs on main.
+
+**Prompt:**
+
+# GitHub Actions CI/CD Integration
+
+Act as a Senior QA Automation Engineer with extensive experience in mobile automation and CI/CD.
+
+Review AGENTS.md, AI_PROMPTS.md, assignment requirements, existing framework configuration, TestNG suites, Allure reporting, and AI integration.
+
+Strictly follow existing project conventions and AGENTS.md.
+
+## 1. Objective
+
+Implement a GitHub Actions workflow for automated Android test execution across two devices with independent Allure reports and failure diagnostics.
+
+## 2. Environment
+
+Use a GitHub Actions matrix with the following configurations:
+
+- Google Pixel 7 — Android 14, API 34.
+- Google Pixel 4a — Android 16, API 36.
+
+Common environment:
+
+- Ubuntu 24.04.
+- Java 17.
+- Node.js 22.23.5.
+- Appium 3.9.1.
+- UiAutomator2 8.6.0.
+- x86_64 architecture.
+- Google Play system images.
+- Hardware acceleration.
+- Signed-out Google Play environment.
+
+Use ReactiveCircus/android-emulator-runner and official GitHub Actions where appropriate.
+
+Verify system image and hardware profile availability. Document any necessary substitutions.
+
+The APK is already available at `apps/app-debug.apk` and contains no native libraries under `lib/`.
+
+Reuse existing FrameworkConfig JVM system property overrides. Do not duplicate framework configuration.
+
+## 3. Workflow
+
+Create `.github/workflows/android-tests.yml`.
+
+Support:
+
+- Push to main.
+- Pull requests.
+- Manual execution through workflow_dispatch.
+
+Run the regression suite by default.
+
+For manual execution, provide suite selection:
+
+- regression
+- known-bugs
+- full-suite
+
+Execute both matrix jobs independently with `fail-fast: false`.
+
+Keep test execution sequential within each runner.
+
+Configure Maven dependency caching, KVM acceleration, dependency installation, emulator readiness, Appium startup, and bounded execution timeouts.
+
+Verify Appium and device readiness before running tests.
+
+Preserve Appium logs outside directories that Maven clean may remove.
+
+Ensure reliable resource cleanup on success and failure.
+
+## 4. Reporting
+
+Generate Allure Report even when tests fail.
+
+Upload available artifacts for each device:
+
+- Allure HTML Report.
+- Allure Results.
+- Failure diagnostic artifacts.
+- Surefire reports.
+- Appium server logs.
+
+Use unique artifact names containing the device and Android API level.
+
+Preserve the actual Maven and workflow failure status.
+
+Do not suppress known defects or unexpected failures with continue-on-error.
+
+Do not implement GitHub Pages deployment yet.
+
+Review artifact contents and document privacy implications before uploading diagnostic data from a public repository.
+
+## 5. AI Integration
+
+Reuse the existing optional AI failure analysis implementation.
+
+Support the validated OpenRouter configuration:
+
+- AI_ANALYSIS_ENABLED
+- OPENAI_API_KEY
+- OPENAI_BASE_URL=https://openrouter.ai/api/v1
+- OPENAI_MODEL=inclusionai/ling-3.2-flash:free
+
+Store credentials exclusively in GitHub Actions Secrets.
+
+Disable AI analysis by default.
+
+Allow optional AI analysis only for trusted manual executions on the main branch.
+
+Never expose secrets to pull requests, logs, reports, or repository files.
+
+The workflow must remain executable without AI credentials.
+
+## 6. Implementation Rules
+
+- Prefer native APIs, established solutions, and official documentation.
+- Follow SOLID, KISS, DRY, and YAGNI.
+- Extract meaningful constants where appropriate.
+- Avoid unnecessary scripts, dependencies, and abstractions.
+- Preserve existing framework architecture and test assertions.
+- Do not refactor previously validated components without a demonstrated necessity.
+- Do not modify the APK.
+- Do not commit or push changes.
+
+Implement the smallest reliable solution appropriate for a time-boxed home assignment.
+
+## 7. Validation and Deliverables
+
+Validate workflow syntax, dependency versions, emulator configuration, execution commands, matrix behavior, artifact paths, and failure handling.
+
+Preserve existing per-device suite counts:
+
+- Regression: 22 executions.
+- Known Bugs: 1 execution.
+- Full Suite: 23 executions.
+
+Do not claim successful GitHub Actions execution unless actually verified.
+
+Document required repository settings, secrets, architectural decisions, and known limitations.
+
+Record the original prompt, implementation outcome, changed files, and actual validation results in AI_PROMPTS.md according to AGENTS.md.
+
+Leave Human Review & Comments empty.
+
+Provide a concise implementation summary.[@SplashTest.java](file:///Users/vadymsula/IdeaProjects/home_assignment/src/test/java/com/zipo/interviewproject/automation/tests/SplashTest.java)
+
+**Outcome:**
+
+- The workflow uses independent Ubuntu 24.04 matrix jobs with \`fail-fast: false\`. The two rows use \`pixel_7\` for Android 14/API 34 and \`pixel_4a\` for Android 16/API 36 with the requested x86_64 Google Play images. Both image and profile selections match the assignment. The stable Play Store packages are \`system-images;android-34;google_apis_playstore;x86_64\` and \`system-images;android-36;google_apis_playstore;x86_64\`. [Google SDK system-image catalog](https://dl.google.com/android/repository/sys-img/google_apis_playstore/sys-img2-1.xml)
+- Both jobs use Temurin Java 17, Maven dependency caching, Node.js 22.23.5, Appium 3.9.1, and UiAutomator2 8.6.0. Action commits are pinned to checkout v7.0.1, setup-java v6.3.0, setup-node v7.1.0, android-emulator-runner v2.38.0, and upload-artifact v7.0.2. The workflow enables KVM, requires VM acceleration, and uses SwiftShader for headless graphics. A fresh AVD is created without snapshots, and the readiness checks verify the boot state, API level, ABI, Play Store presence, and signed-out Google state before Maven starts. [ReactiveCircus v2.38.0](https://github.com/ReactiveCircus/android-emulator-runner/tree/v2.38.0) · [Android Emulator acceleration](https://developer.android.com/studio/run/emulator-acceleration)
+- Pushes to main and pull requests run \`regression\`. Manual runs can select \`regression\`, \`known-bugs\`, or \`full-suite\`. Each job runs Maven once with the selected TestNG XML and existing FrameworkConfig overrides for the device name, emulator serial, Android version, and Appium URL. A ten-minute boot limit and a 35-minute Maven limit leave time for cleanup and reporting. The emulator action shuts down the AVD, and an always-run step terminates the recorded Appium process. [GitHub manual workflow runs](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/manually-run-a-workflow)
+- Appium starts on loopback before the emulator step, and its log is stored at \`logs/appium.log\`. After the test step, Allure generation runs whenever results exist, including on a Maven failure. Each job uploads its available HTML, Allure results, raw failure artifacts, Surefire reports, and Appium log as a seven-day artifact named \`android-<profile>-api<level>-<suite>-attempt<attempt>\`. Maven failure and timeout statuses carry through the emulator step.
+- Enable GitHub Actions for the repository and allow the pinned official actions and ReactiveCircus action. Keep the workflow on the default branch to make manual dispatch available. The \`android-ci\` environment is for ordinary runs and should contain no secrets. For AI, create \`android-ai\` under **Settings → Environments**, choose **Selected branches and tags**, and allow the \`main\` branch. Then add the existing OpenRouter credential as the \`OPENAI_API_KEY\` environment secret in \`android-ai\`. The manual \`enable_ai\` input is off by default and applies to main branch dispatches. The test step uses \`https://openrouter.ai/api/v1\` and \`inclusionai/ling-3.2-flash:free\` through the existing analyzer. Runs can execute with an empty credential. [GitHub environment secrets and branch rules](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments) · [OpenRouter model endpoint](https://openrouter.ai/inclusionai/ling-3.2-flash%3Afree)
+- Review artifacts for public-repository use before enabling the workflow. Signed-in GitHub users with repository read access can download the artifact bundle. Screenshots and XML can contain UI text. Logcat, Appium logs, traces, and Surefire can include device identifiers, host paths, and error details. The workflow uses fresh signed-out emulators and the supplied assignment APK. Optional analysis sends selected, redacted diagnostic text to OpenRouter, and provider data policies apply. [GitHub artifact access](https://docs.github.com/en/actions/how-tos/manage-workflow-runs/download-workflow-artifacts) · [OpenRouter data collection](https://openrouter.ai/docs/guides/privacy/data-collection)
+
+**Changed Files:**
+
+- Created \`.github/workflows/android-tests.yml\`
+- Modified \`AI_PROMPTS.md\`
+
+**Validation:**
+
+- \`actionlint\` 1.7.12 passed. All five action commits and their input names matched the published release definitions. Parsed workflow and shell checks covered both matrix rows, triggers, timeout paths, always-run cleanup and publishing, distinct artifact names, and the five upload paths.
+- Verified the two stable x86_64 Google Play images in the Google SDK catalog and both hardware profile IDs with \`avdmanager list device\`. Verified that the tracked APK has zero entries under \`lib/\`. Installed Appium 3.9.1 and UiAutomator2 8.6.0 under Node.js 22.23.5 and npm 10.9.9 in an isolated temporary directory.
+- The workflow's emulator commands passed 12 controlled shell scenarios per matrix row, covering readiness rejections, a signed-in emulator rejection, a Maven failure, and a Maven timeout. Seven simulated event/ref combinations verified regression defaults, suite selection, main-only manual AI, and an empty credential path.
+- Maven dry runs using both matrix rows' overrides discovered 22 regression, 1 known-bug, and 23 full-suite invocations per row. The live local Android 14 known-bug run returned Maven exit code 1 for BUG-004, retained the original Selenium timeout, generated a Broken Allure result, and produced all five upload paths. The Appium log survived Maven clean. Portrait restoration, driver session termination, and isolated Appium shutdown completed.
+- Reviewed the local landscape screenshot, app-only page source, scoped Logcat, stack trace, Allure attachments, and Appium server log. The sample screenshot showed the assignment's Earth list. The checked text files matched zero common credential markers. Future artifacts can contain sensitive data and need review before public use.
+- Hosted GitHub Actions execution, Linux KVM boot, a live API 36 session, GitHub artifact upload, and OpenRouter requests from CI remain unverified. Local runtime validation used the existing Apple Silicon Android 14 emulator. Temporary validation files were removed.
+
+**Human Review & Comments:**
+
+---
