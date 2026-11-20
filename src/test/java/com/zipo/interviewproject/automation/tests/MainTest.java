@@ -3,6 +3,7 @@ package com.zipo.interviewproject.automation.tests;
 import com.zipo.interviewproject.automation.base.BaseTest;
 import com.zipo.interviewproject.automation.data.TestData;
 import com.zipo.interviewproject.automation.pages.MainPage;
+import io.qameta.allure.Feature;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 import org.testng.asserts.SoftAssert;
@@ -10,9 +11,11 @@ import org.testng.asserts.SoftAssert;
 import java.util.HashSet;
 import java.util.List;
 
+import static io.qameta.allure.Allure.step;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
+@Feature("Main Screen")
 public class MainTest extends BaseTest {
 
     private MainPage mainPage;
@@ -25,14 +28,14 @@ public class MainTest extends BaseTest {
 
     @Test(description = "Verify Main Screen content")
     public void testMainScreenContent() {
-        mainPage.waitUntilVisible();
+        step("Verify the Main Screen is visible after launch", () -> {
+            mainPage.waitUntilVisible();
+            assertTrue(mainPage.isVisible(),
+                    "Main Screen should be visible after launch");
+        });
 
-        assertTrue(mainPage.isVisible(),
-                "Main Screen should be visible after launch");
-
-        assertEquals(mainPage.getToolbarTitle(),
-                TestData.APPLICATION_TITLE,
-                "Incorrect Main Screen toolbar title");
+        step("Verify the toolbar title", () -> assertEquals(mainPage.getToolbarTitle(),
+                TestData.APPLICATION_TITLE, "Incorrect Main Screen toolbar title"));
     }
 
     @Test(description = "Verify Earth items count, titles, order and uniqueness")

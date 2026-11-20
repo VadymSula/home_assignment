@@ -5,6 +5,9 @@ import com.zipo.interviewproject.automation.data.TestData;
 import com.zipo.interviewproject.automation.data.TestDataProvider;
 import com.zipo.interviewproject.automation.pages.MainPage;
 import com.zipo.interviewproject.automation.pages.PaywallPage;
+import io.qameta.allure.Feature;
+import io.qameta.allure.Param;
+import io.qameta.allure.model.Parameter.Mode;
 import org.openqa.selenium.ScreenOrientation;
 import org.testng.ITestResult;
 import org.testng.annotations.BeforeMethod;
@@ -13,9 +16,11 @@ import org.testng.asserts.SoftAssert;
 
 import java.util.function.Consumer;
 
+import static io.qameta.allure.Allure.step;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
+@Feature("Paywall")
 public class PaywallTest extends BaseTest {
 
     private static final String FIRST_EARTH_ITEM =
@@ -50,24 +55,26 @@ public class PaywallTest extends BaseTest {
     public void testPaywallContentForEarthItem(String itemTitle) {
         openPaywall(itemTitle);
 
-        assertTrue(paywallPage.isVisible(),
-                itemTitle + " Download should open the Paywall");
+        step("Verify Paywall content and available actions", () -> {
+            assertTrue(paywallPage.isVisible(),
+                    itemTitle + " Download should open the Paywall");
 
-        SoftAssert softAssert = new SoftAssert();
+            SoftAssert softAssert = new SoftAssert();
 
-        softAssert.assertEquals(paywallPage.getTitle(),
-                TestData.PAYWALL_TITLE,
-                itemTitle + ": Incorrect Paywall title");
+            softAssert.assertEquals(paywallPage.getTitle(),
+                    TestData.PAYWALL_TITLE,
+                    itemTitle + ": Incorrect Paywall title");
 
-        softAssert.assertEquals(paywallPage.getDescription(),
-                TestData.PAYWALL_DESCRIPTION,
-                itemTitle + ": Incorrect Paywall description");
+            softAssert.assertEquals(paywallPage.getDescription(),
+                    TestData.PAYWALL_DESCRIPTION,
+                    itemTitle + ": Incorrect Paywall description");
 
-        checkActionsAvailable(softAssert, itemTitle);
+            checkActionsAvailable(softAssert, itemTitle);
 
-        softAssert.assertAll();
+            softAssert.assertAll();
+        });
 
-        paywallPage.dismissWithNotNow();
+        step("Dismiss Paywall with Not Now", paywallPage::dismissWithNotNow);
 
         verifyReturnToMain(itemTitle + " Not Now");
     }
@@ -79,7 +86,7 @@ public class PaywallTest extends BaseTest {
     )
     public void testPaywallAction(
             String actionName,
-            Consumer<PaywallPage> action,
+            @Param(excluded = true, mode = Mode.HIDDEN) Consumer<PaywallPage> action,
             String expectedToast) {
 
         openPaywall(FIRST_EARTH_ITEM);
@@ -88,9 +95,8 @@ public class PaywallTest extends BaseTest {
                 TestData.PAYWALL_DESCRIPTION,
                 actionName + " requires the disabled-billing Paywall");
 
-        action.accept(paywallPage);
-
-        paywallPage.waitForToastMessage(expectedToast);
+        step("Execute billing action " + actionName, () -> action.accept(paywallPage));
+        step("Verify billing Toast", () -> paywallPage.waitForToastMessage(expectedToast));
 
         verifyReturnToMain(actionName);
     }
@@ -102,11 +108,11 @@ public class PaywallTest extends BaseTest {
     )
     public void testPaywallDismissalAndReopening(
             String actionName,
-            Consumer<PaywallPage> dismissAction) {
+            @Param(excluded = true, mode = Mode.HIDDEN) Consumer<PaywallPage> dismissAction) {
 
         openPaywall(FIRST_EARTH_ITEM);
 
-        dismissAction.accept(paywallPage);
+        step("Dismiss Paywall with " + actionName, () -> dismissAction.accept(paywallPage));
 
         verifyReturnToMain(actionName);
 
@@ -125,16 +131,19 @@ public class PaywallTest extends BaseTest {
 
         restorePortrait = true;
 
-        device().rotateToLandscape();
+        step("Rotate device to landscape", () -> {
+            device().rotateToLandscape();
+            assertEquals(device().getOrientation(),
+                    ScreenOrientation.LANDSCAPE,
+                    "Device should switch to landscape orientation");
+        });
 
-        assertEquals(device().getOrientation(),
-                ScreenOrientation.LANDSCAPE,
-                "Device should switch to landscape orientation");
+        step("Verify Paywall state after rotation", () -> {
+            paywallPage.waitUntilVisible();
 
-        paywallPage.waitUntilVisible();
-
-        assertTrue(paywallPage.isVisible(),
-                "Paywall should remain visible after device rotation");
+            assertTrue(paywallPage.isVisible(),
+                    "Paywall should remain visible after device rotation");
+        });
     }
 
     @Override
@@ -146,17 +155,21 @@ public class PaywallTest extends BaseTest {
     }
 
     private void openPaywall(String itemTitle) {
-        mainPage.waitUntilVisible();
-        mainPage.clickDownloadButton(itemTitle);
-        paywallPage.waitUntilVisible();
+        step("Open Paywall for " + itemTitle, () -> {
+            mainPage.waitUntilVisible();
+            mainPage.clickDownloadButton(itemTitle);
+            paywallPage.waitUntilVisible();
+        });
     }
 
     private void verifyReturnToMain(String actionName) {
-        paywallPage.waitUntilDisappeared();
-        mainPage.waitUntilVisible();
+        step("Verify return to Main Screen", () -> {
+            paywallPage.waitUntilDisappeared();
+            mainPage.waitUntilVisible();
 
-        assertTrue(mainPage.isVisible(),
-                actionName + " should close the Paywall and return to Main");
+            assertTrue(mainPage.isVisible(),
+                    actionName + " should close the Paywall and return to Main");
+        });
     }
 
     private void checkActionsAvailable(

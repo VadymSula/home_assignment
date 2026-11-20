@@ -34,11 +34,18 @@ public final class FailureDiagnostics {
     private static final Path ARTIFACT_ROOT =
             Path.of("target", "artifacts");
 
+    private static final String MONITORING_FAILURE_MESSAGE =
+            "Application health monitoring failed";
+
+    private static final String SAFE_NAME_PATTERN =
+            "[^a-zA-Z0-9_-]";
+
     private final LogcatCapture logcat;
     private final CrashDetector crashDetector;
 
     private IllegalStateException startFailure;
     private boolean completed;
+    private HealthEvidence healthEvidence;
 
     private FailureDiagnostics(FrameworkConfig config) {
         logcat = new LogcatCapture(
@@ -109,6 +116,18 @@ public final class FailureDiagnostics {
                 : Optional.empty();
     }
 
+    public static Optional<HealthEvidence> healthEvidence(ITestResult result) {
+        return result.getAttribute(ATTRIBUTE) instanceof FailureDiagnostics diagnostics
+                ? Optional.ofNullable(diagnostics.healthEvidence)
+                : Optional.empty();
+    }
+
+    public record HealthEvidence(
+            boolean crashDetected,
+            boolean anrDetected,
+            String summary) {
+    }
+
     private void evaluate(ITestResult result) {
         AndroidDriver driver =
                 DriverFactory.getActiveDriver().orElse(null);
@@ -129,11 +148,18 @@ public final class FailureDiagnostics {
                 List<CrashDetector.Finding> findings =
                         crashDetector.detect(logs);
 
-                if (!findings.isEmpty()) {
-                    String summary = findings.stream()
-                            .map(CrashDetector.Finding::description)
-                            .collect(Collectors.joining(", "));
+                String summary = findings.stream()
+                        .map(CrashDetector.Finding::description)
+                        .collect(Collectors.joining(", "));
 
+                healthEvidence = new HealthEvidence(
+                        findings.stream().anyMatch(
+                                finding -> finding.kind() == CrashDetector.Kind.CRASH),
+                        findings.stream().anyMatch(
+                                finding -> finding.kind() == CrashDetector.Kind.ANR),
+                        summary);
+
+                if (!findings.isEmpty()) {
                     LOGGER.error(
                             "Application health check for {} detected {}",
                             result.getMethod().getQualifiedName(),
@@ -178,13 +204,13 @@ public final class FailureDiagnostics {
 
             writeTextArtifact(
                     directory,
-                    "stacktrace.txt",
+                    DiagnosticArtifacts.STACK_TRACE,
                     () -> stackTrace(result.getThrowable()));
 
             if (driver != null) {
                 writeTextArtifact(
                         directory,
-                        "page-source.xml",
+                        DiagnosticArtifacts.PAGE_SOURCE,
                         driver::getPageSource);
             }
         }
@@ -242,11 +268,12 @@ public final class FailureDiagnostics {
         } else {
             try {
                 ScreenshotCapture.capture(
-                        driver, directory.resolve("screenshot.png"));
+                        driver, directory.resolve(DiagnosticArtifacts.SCREENSHOT));
 
             } catch (IOException | RuntimeException exception) {
                 LOGGER.warn(
-                        "Could not capture screenshot.png ({})",
+                        "Could not capture {} ({})",
+                        DiagnosticArtifacts.SCREENSHOT,
                         exception.getClass().getSimpleName());
             }
         }
@@ -258,11 +285,12 @@ public final class FailureDiagnostics {
             Path directory, List<String> logs) {
 
         try {
-            Files.write(directory.resolve("logcat.txt"), logs);
+            Files.write(directory.resolve(DiagnosticArtifacts.LOGCAT), logs);
 
         } catch (IOException | RuntimeException exception) {
             LOGGER.warn(
-                    "Could not write logcat.txt ({})",
+                    "Could not write {} ({})",
+                    DiagnosticArtifacts.LOGCAT,
                     exception.getClass().getSimpleName());
         }
     }
@@ -307,14 +335,14 @@ public final class FailureDiagnostics {
                 : cause.getClass().getSimpleName();
 
         LOGGER.warn(
-                "Application health monitoring failed ({})", detail);
+                "{} ({})", MONITORING_FAILURE_MESSAGE, detail);
 
         return new IllegalStateException(
-                "Application health monitoring failed: " + detail,
+                MONITORING_FAILURE_MESSAGE + ": " + detail,
                 cause);
     }
 
     private static String safeName(String name) {
-        return name.replaceAll("[^a-zA-Z0-9_-]", "_");
+        return name.replaceAll(SAFE_NAME_PATTERN, "_");
     }
 }

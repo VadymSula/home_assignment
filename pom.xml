@@ -16,6 +16,11 @@
         <testng.version>7.12.0</testng.version>
         <slf4j.version>2.0.19</slf4j.version>
         <logback.version>1.6.8</logback.version>
+        <allure.version>3.0.1</allure.version>
+        <allure.maven.version>3.1.0</allure.maven.version>
+        <allure.report.version>2.39.0</allure.report.version>
+        <openai.version>4.110.0</openai.version>
+        <kotlin.version>1.9.10</kotlin.version>
     </properties>
 
     <dependencyManagement>
@@ -25,6 +30,23 @@
                 <groupId>org.seleniumhq.selenium</groupId>
                 <artifactId>selenium-bom</artifactId>
                 <version>${selenium.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>io.qameta.allure</groupId>
+                <artifactId>allure-bom</artifactId>
+                <version>${allure.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!-- Align the Kotlin runtime used by the OpenAI SDK, OkHttp, and Okio. -->
+            <dependency>
+                <groupId>org.jetbrains.kotlin</groupId>
+                <artifactId>kotlin-bom</artifactId>
+                <version>${kotlin.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -78,6 +100,17 @@
             <artifactId>testng</artifactId>
             <version>${testng.version}</version>
         </dependency>
+
+        <dependency>
+            <groupId>io.qameta.allure</groupId>
+            <artifactId>allure-testng</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>com.openai</groupId>
+            <artifactId>openai-java</artifactId>
+            <version>${openai.version}</version>
+        </dependency>
     </dependencies>
 
     <build>
@@ -86,6 +119,9 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.15.0</version>
+                <configuration>
+                    <parameters>true</parameters>
+                </configuration>
             </plugin>
 
             <plugin>
@@ -94,6 +130,18 @@
                 <version>3.5.5</version>
                 <configuration>
                     <promoteUserPropertiesToSystemProperties>true</promoteUserPropertiesToSystemProperties>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>io.qameta.allure</groupId>
+                <artifactId>allure-maven</artifactId>
+                <version>${allure.maven.version}</version>
+                <configuration>
+                    <reportVersion>${allure.report.version}</reportVersion>
+                    <installDirectory>${project.build.directory}/allure-cli</installDirectory>
+                    <reportDirectory>${project.build.directory}/allure-report</reportDirectory>
+                    <serveHost>127.0.0.1</serveHost>
                 </configuration>
             </plugin>
         </plugins>
