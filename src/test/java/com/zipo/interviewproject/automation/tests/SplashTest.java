@@ -30,24 +30,25 @@ public class SplashTest extends BaseTest {
 
     @Test(description = "Verify application title and loading indicator on Splash Screen")
     public void testSplashScreenContent() {
-        step("Launch application and wait for Splash Screen", this::launchApplication);
+        step("Launch application and verify Splash Screen content", () -> {
+            relaunchApplication();
 
-        step("Verify Splash Screen title and loading indicator", () -> {
-            String title = splashPage.getApplicationTitle();
-            boolean loadingIndicatorVisible =
-                    splashPage.isLoadingIndicatorVisible();
+            SplashPage.Snapshot snapshot = splashPage.waitForSnapshot();
 
-            assertEquals(title, TestData.APPLICATION_TITLE,
+            assertEquals(snapshot.title(), TestData.APPLICATION_TITLE,
                     "Incorrect application title on Splash Screen");
 
-            assertTrue(loadingIndicatorVisible,
+            assertTrue(snapshot.loadingIndicatorVisible(),
                     "Loading indicator should be visible on Splash Screen");
         });
     }
 
     @Test(description = "Verify transition from Splash Screen to Main Screen")
     public void testSplashToMainScreenTransition() {
-        step("Launch application and wait for Splash Screen", this::launchApplication);
+        step("Launch application and wait for Splash Screen", () -> {
+            relaunchApplication();
+            splashPage.waitUntilVisible();
+        });
 
         step("Verify transition to Main Screen", () -> {
             mainPage.waitUntilVisible();
@@ -60,10 +61,8 @@ public class SplashTest extends BaseTest {
         });
     }
 
-    private void launchApplication() {
+    private void relaunchApplication() {
         device().setWaitForIdleTimeout(0);
         device().relaunchApp(config.appPackage());
-
-        splashPage.waitUntilVisible();
     }
 }
