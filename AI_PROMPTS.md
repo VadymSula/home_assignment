@@ -1216,4 +1216,426 @@ Added three serial, package-discovered XML suites using native TestNG group filt
 
 **Human Review & Comments:**
 
+*Reviewed, no changes required*
+
+---
+
+### Prompt #09 — Failure Diagnostics and Application Health Monitoring
+
+**Date:** 2026-11-20
+
+**Context:**
+
+The existing Appium and TestNG framework needed per-invocation failure artifacts and Android crash and ANR monitoring. Diagnostics needed to preserve BUG-004's failing landscape state before teardown restored portrait.
+
+**Prompt:**
+
+# Failure Diagnostics and Application Health Monitoring
+
+Act as a Senior QA Automation Engineer and Automation Framework Architect with extensive experience in Java, Appium, Selenium, TestNG, Android SDK, and mobile application diagnostics.
+
+Before implementation, review AGENTS.md, AI_PROMPTS.md, the test assignment requirements available in the repository, and the existing framework architecture.
+
+Strictly follow the existing project conventions and all rules defined in AGENTS.md.
+
+## Objective
+
+Extend the existing mobile automation framework with reliable failure diagnostics and automatic application crash and ANR detection.
+
+The implementation must be centralized, reusable, maintainable, and independent of individual test scenarios.
+
+Prioritize established, documented, and native solutions provided by Appium, Selenium, TestNG, Android SDK, and Java over custom implementations.
+
+## 1. Architecture
+
+Review the existing BaseTest, DriverFactory, FrameworkConfig, DeviceAction, logging configuration, and TestNG suites before making changes.
+
+Use the following proposed structure:
+
+- `diagnostics/ScreenshotCapture.java`
+- `diagnostics/LogcatCapture.java`
+- `diagnostics/CrashDetector.java`
+- `diagnostics/FailureDiagnostics.java`
+- `listeners/TestExecutionListener.java`
+
+Responsibilities:
+
+- ScreenshotCapture — capture and persist screenshots.
+- LogcatCapture — collect Android device logs for individual test executions.
+- CrashDetector — identify application crashes and ANRs from Android logs.
+- FailureDiagnostics — coordinate diagnostic artifact collection.
+- TestExecutionListener — integrate diagnostics and application health monitoring with the TestNG lifecycle.
+
+Treat this structure as an architectural guideline. Introduce additional classes only when they have a clear responsibility and are genuinely necessary.
+
+Follow SOLID, KISS, DRY, and separation of concerns.
+
+Do not introduce unnecessary abstraction layers, interfaces with a single implementation, design patterns without practical benefits, or generic utility classes.
+
+## 2. Failure Artifacts
+
+Automatically collect the following artifacts for every failed test execution:
+
+- Screenshot.
+- Android device Logcat.
+- Page source.
+- Exception stack trace.
+
+### Screenshot
+
+Use the existing native Selenium/Appium screenshot API:
+
+`driver.getScreenshotAs(OutputType.FILE)`
+
+Use standard Java NIO APIs for file operations.
+
+Do not implement custom screenshot mechanisms when the existing API is available.
+
+### Page Source
+
+Use the existing Appium API:
+
+`driver.getPageSource()`
+
+Save the returned UI hierarchy as an XML file.
+
+### Stack Trace
+
+Retrieve the original exception from `ITestResult`.
+
+Use standard Java exception handling and stack trace serialization.
+
+Preserve the original exception and its cause.
+
+### Artifact Storage
+
+Store failure artifacts using the following structure:
+
+```
+target/
+    artifacts/
+        PaywallTest/
+            testPaywallStatePreservedAfterRotation_<execution-id>/
+                screenshot.png
+                logcat.txt
+                page-source.xml
+                stacktrace.txt
+```
+
+Requirements:
+
+- Generate unique artifact directories for every test invocation.
+- Support parameterized tests and repeated executions without overwriting artifacts.
+- Use filesystem-safe directory names.
+- Use platform-independent path handling.
+- Do not hardcode absolute paths.
+- Keep generated artifacts outside version control.
+- Do not persist unnecessary diagnostic files for successful tests.
+- Keep the artifact structure suitable for future CI artifact publishing and AI-powered failure analysis.
+
+## 3. Android Logcat Collection
+
+Use established Android SDK and ADB capabilities to collect device logs.
+
+Prefer a reliable ADB-based implementation that remains available independently of the Appium session, including situations where the application has crashed or the driver session is no longer responsive.
+
+Use official Android Logcat documentation as the implementation reference.
+
+Requirements:
+
+- Collect device logs for each individual test invocation.
+- Establish the log collection boundary before application launch or driver initialization.
+- Collect logs from relevant Android buffers, including main, system, crash, and events.
+- Use reliable device-side timestamps or another documented mechanism to isolate the relevant execution period.
+- Avoid collecting logs from previous test executions as evidence of current failures.
+- Do not globally clear Android Logcat buffers.
+- Do not restrict collection exclusively to the current application PID, because system-generated crash and ANR events may originate from other processes.
+- Resolve the target device using existing configuration or the actual Appium session capabilities.
+- Support the existing optional device UDID configuration.
+- Do not hardcode emulator serial numbers.
+- Never silently select an arbitrary device when multiple devices are connected.
+- Preserve relevant system logs required for root cause analysis.
+
+If external ADB commands are required, use Java ProcessBuilder and standard Java APIs.
+
+Handle:
+
+- Command execution timeouts.
+- Process termination and resource cleanup.
+- Standard output and error streams without deadlocks.
+- Non-zero exit codes.
+- Missing ADB installations.
+- Unavailable or disconnected devices.
+- Interrupted execution.
+
+Reuse collected logs for crash detection and failure artifact generation instead of executing redundant ADB commands unnecessarily.
+
+Do not introduce additional dependencies if the existing Java and Android SDK capabilities are sufficient.
+
+## 4. Application Crash Detection
+
+Implement deterministic detection of application crashes using Android device logs.
+
+Use established Android crash indicators, including:
+
+- AndroidRuntime fatal exceptions.
+- `FATAL EXCEPTION` records associated with the application process.
+- `am_crash` system events.
+- Native crashes and fatal signals when they can be reliably associated with the application process.
+
+Requirements:
+
+- Obtain the application package from FrameworkConfig.
+- Do not hardcode the application package inside reusable diagnostic components.
+- Detect crashes belonging to the application under test.
+- Support application subprocesses where applicable.
+- Correlate crash records with the application package or process using reliable log evidence.
+- Ignore unrelated crashes from system applications, Appium infrastructure, and other installed applications.
+- Ignore crashes that occurred before the current test execution.
+- Avoid duplicate reporting of the same crash.
+- Preserve the relevant log evidence.
+
+Do not identify an application crash solely because an arbitrary exception, error message, or fatal signal appears somewhere in Logcat.
+
+Do not classify intentional application termination, relaunch, or normal Android lifecycle transitions as crashes.
+
+## 5. ANR Detection
+
+Implement automatic Application Not Responding detection using established Android system log indicators, including:
+
+- `ANR in <application-package>`
+- `am_anr` system events
+
+Apply the same application-specific filtering and execution boundaries used for crash detection.
+
+Do not classify Selenium timeouts, Appium command timeouts, temporary UI delays, or slow test execution as ANRs without corresponding Android system evidence.
+
+Crash and ANR detection must execute for every completed test invocation, regardless of its initial assertion result.
+
+If a test completes successfully but an application crash or ANR occurred during its execution, the test must be reported as FAILED.
+
+If the test has already failed:
+
+- Preserve the original failure.
+- Attach the detected application health issue as additional diagnostic information.
+- Do not replace the original exception.
+
+If Android logs cannot be collected or application health cannot be evaluated, report the monitoring failure explicitly.
+
+Do not silently report a successful application health check when the required evidence is unavailable. An otherwise successful test should fail with a clearly distinguishable infrastructure or monitoring error in this situation.
+
+## 6. TestNG Lifecycle Integration
+
+Use native TestNG listener mechanisms.
+
+Prefer `IInvokedMethodListener` for application health evaluation and failure diagnostics before teardown.
+
+Verify the actual lifecycle behavior of the existing TestNG version before implementing result modification.
+
+The expected execution flow is:
+
+1. Initialize the diagnostic context and log collection boundary.
+2. Initialize the driver session.
+3. Execute existing test setup.
+4. Execute the test scenario and assertions.
+5. Evaluate application crash and ANR indicators.
+6. Update the test result when necessary.
+7. Collect failure artifacts if the test has failed.
+8. Execute existing teardown logic.
+9. Restore device orientation when required.
+10. Terminate the driver session.
+11. Release diagnostic resources.
+
+Requirements:
+
+- Keep existing BaseTest responsibilities and lifecycle behavior.
+- Make only necessary modifications to BaseTest and DriverFactory.
+- Preserve existing ThreadLocal driver management.
+- Maintain test invocation isolation.
+- Capture failure artifacts before orientation restoration and driver termination.
+- Capture the screenshot promptly when a test failure is already known.
+- Ensure application health failures are reflected in the actual TestNG and Maven Surefire reports.
+- Do not rely exclusively on assertions thrown from `@AfterMethod`, because they may be reported as configuration failures rather than test failures.
+- Do not implement custom TestNG result management mechanisms.
+- Handle setup failures gracefully.
+- Collect available diagnostics even when driver initialization is incomplete or the session is unavailable.
+- Preserve existing TestNG skipped-test semantics.
+- Ensure diagnostic collection is not executed multiple times for the same invocation.
+- Always release resources, even when diagnostic collection fails.
+
+Register the listener using a single standard TestNG registration mechanism.
+
+Ensure it works consistently for:
+
+- Individual test method execution.
+- Individual test class execution.
+- Regression Suite.
+- Known Bugs Suite.
+- Full Suite.
+- Maven group-based execution.
+
+Do not require individual test classes to implement diagnostic behavior.
+
+## 7. Logging and Error Handling
+
+Reuse the existing SLF4J and Logback logging configuration.
+
+Follow the established logging conventions.
+
+Log meaningful events, including:
+
+- Diagnostic context initialization.
+- Android log collection.
+- Application crash detection.
+- ANR detection.
+- Artifact creation.
+- Diagnostic collection failures.
+- Resource cleanup.
+
+Use appropriate logging levels.
+
+Do not print complete Logcat output or page source into the console.
+
+Do not use System.out.println.
+
+An individual artifact collection failure must not prevent the remaining artifacts from being collected.
+
+Diagnostic failures must never hide the original test failure or prevent driver termination.
+
+Avoid excessive logging and unnecessary exception handling.
+
+## 8. Implementation Constraints
+
+- Follow all rules defined in AGENTS.md.
+- Use the existing Java 17 environment and project dependencies.
+- Prefer official documentation and version-compatible APIs.
+- Preserve the existing framework architecture and coding conventions.
+- Preserve all existing functional test scenarios and assertions.
+- Preserve the existing TestNG suite configuration and known-bug group behavior.
+- Do not attempt to fix the existing SplashTest instability.
+- Do not modify application behavior or the APK.
+- Do not introduce retries to hide failures.
+- Do not introduce Thread.sleep or unnecessary polling.
+- Do not add Allure, AI integration, or GitHub Actions configuration yet.
+- Do not introduce speculative functionality for other platforms.
+- Do not enable parallel execution.
+- Do not change dependency versions unnecessarily.
+- Do not commit or push changes.
+
+The implementation should remain extensible for future multi-device execution without introducing premature complexity.
+
+## 9. Validation
+
+Execute:
+
+`mvn clean test-compile`
+
+Validate the crash and ANR detection logic using representative Android log samples.
+
+Cover at least the following cases:
+
+- Application Java crash.
+- Application native crash with reliable process association.
+- Application ANR.
+- Crash belonging to another application.
+- ANR belonging to another application.
+- Historical crash outside the current execution boundary.
+- Intentional application termination.
+- Normal application logs.
+
+Verify that an otherwise successful test is reported as FAILED when crash or ANR evidence is detected.
+
+Use a focused, controlled validation of TestNG result propagation without intentionally crashing the supplied application or modifying existing functional scenarios.
+
+Clearly distinguish simulated validation from actual application crash reproduction.
+
+Run one existing successful test:
+
+`mvn test -Dtest=MainTest#testMainScreenContent`
+
+Run the existing known-defect test:
+
+`mvn test -Dsurefire.suiteXmlFiles=src/test/resources/suites/known-bugs.xml`
+
+Verify that:
+
+- The successful test passes without unnecessary failure artifacts.
+- BUG-004 continues to fail as expected.
+- All four diagnostic artifacts are generated for BUG-004 when the required resources are available.
+- The screenshot captures the landscape state before portrait restoration.
+- Logcat contains relevant device logs from the current execution.
+- The original test exception is preserved.
+- Driver termination completes successfully.
+- Crash and ANR detection does not produce false positives.
+- No diagnostic processes or driver sessions remain active after execution.
+
+Verify suite discovery and preserve the existing mobile test execution counts:
+
+- Regression Suite: 22 executions.
+- Known Bugs Suite: 1 execution.
+- Full Suite: 23 executions.
+
+Keep any dedicated diagnostic validation tests outside mobile suite discovery.
+
+Do not retain temporary failing validation tests or artificial crash scenarios in the functional test suite.
+
+Avoid repeatedly executing the entire mobile test suite. Full runtime validation will be performed separately.
+
+Document any validation that could not be completed and explain the reason.
+
+## 10. Documentation and Deliverables
+
+Document this task in AI_PROMPTS.md according to AGENTS.md.
+
+Preserve the original prompt and record the actual implementation outcome, changed files, and validation results.
+
+Leave Human Review & Comments empty for manual review.
+
+Provide a concise implementation summary covering:
+
+- Architectural decisions.
+- Created and modified files.
+- Native APIs and mechanisms used.
+- TestNG lifecycle integration.
+- Logcat collection strategy.
+- Crash and ANR detection strategy.
+- Failure artifact locations.
+- Actual validation results.
+- Known limitations and trade-offs.
+- Any deviations from the requested implementation.
+
+Do not claim successful validation unless it was actually performed.
+
+Implement a production-quality solution appropriate for the size and scope of this home assignment, without overengineering.[@PaywallTest.java](file:///Users/vadymsula/IdeaProjects/home_assignment/src/test/java/com/zipo/interviewproject/automation/tests/PaywallTest.java)
+
+**Outcome:**
+
+- BaseTest establishes the diagnostic context before starting Appium and passes the resolved ADB serial to DriverFactory. A single inherited TestNG listener evaluates the outcome in `afterInvocation`, before orientation restoration and session teardown. TestNG records health and monitoring failures on otherwise successful tests. An existing failure retains its original exception and cause, with any health issue attached as a suppressed exception. Setup failures retain TestNG's configuration-failure and skipped-test reporting. [TestNG 7.12.0 invocation lifecycle](https://github.com/testng-team/testng/blob/7.12.0/testng-core/src/main/java/org/testng/internal/invokers/TestInvoker.java)
+- LogcatCapture uses Java ProcessBuilder with a command deadline and temporary output redirection. It uses the configured UDID or requires one connected ADB device. It reads `main`, `system`, `crash`, and `events` in one dump and scopes the dump to device-side start and end markers. CrashDetector reuses those records to match the configured package and its private subprocesses. It recognizes AndroidRuntime fatal reports, ActivityManager crash and ANR events, and corroborated native signals and tombstones. It deduplicates related records and honors Android's recoverable crash flag. [Android Logcat](https://developer.android.com/tools/logcat) · [AOSP event definitions](https://android.googlesource.com/platform/frameworks/base/+/refs/heads/android14-security-release/services/core/java/com/android/server/am/EventLogTags.logtags) · [AOSP native crash diagnostics](https://source.android.com/docs/core/tests/debug/native-crash)
+- FailureDiagnostics uses the native `getScreenshotAs(OutputType.FILE)` and `getPageSource()` APIs, Java NIO, and the TestNG throwable to save the screenshot, scoped Logcat, XML hierarchy, and original stack trace under `target/artifacts/<class>/<method>_<execution-id>/`. Each artifact is collected independently.
+
+**Changed Files:**
+
+- Created `src/main/java/com/zipo/interviewproject/automation/diagnostics/ScreenshotCapture.java`
+- Created `src/main/java/com/zipo/interviewproject/automation/diagnostics/LogcatCapture.java`
+- Created `src/main/java/com/zipo/interviewproject/automation/diagnostics/CrashDetector.java`
+- Created `src/main/java/com/zipo/interviewproject/automation/diagnostics/FailureDiagnostics.java`
+- Created `src/main/java/com/zipo/interviewproject/automation/listeners/TestExecutionListener.java`
+- Modified `src/main/java/com/zipo/interviewproject/automation/base/BaseTest.java`
+- Modified `src/main/java/com/zipo/interviewproject/automation/driver/DriverFactory.java`
+- Modified `AI_PROMPTS.md`
+
+**Validation:**
+
+- `mvn clean test-compile` passed on Java 17. Native TestNG dry runs via Surefire discovered 22 regression, 1 known-bug, and 23 full-suite invocations. The `known-bug` group selected one invocation, and `-Dtest=MainTest` selected three.
+- Eighteen representative log cases passed, including Java and native crashes, ANRs, unrelated processes, historical and post-execution records, recoverable native reports, intentional termination, PID reuse, normal logs, and an incomplete log boundary. ADB simulations also covered a missing executable, multiple connected devices, an offline device, a non-zero exit, and termination of a timed-out command.
+- In a temporary Surefire fixture, passing test bodies became test failures for a simulated crash, an ANR, and unavailable Logcat. An existing assertion retained its original cause and gained the suppressed crash detail. A deliberate skip remained skipped and a healthy invocation passed. A separate setup-failure fixture wrote Logcat and stack trace while Surefire retained the configuration failure and skipped test. The fixtures and generated fixture artifacts were removed.
+- On Android 14/API 34 with Appium 3.9.1 and UiAutomator2 8.6.0, `mvn test -Dtest=MainTest#testMainScreenContent` passed with one test, zero failures, and zero artifacts.
+- `mvn test -Dsurefire.suiteXmlFiles=src/test/resources/suites/known-bugs.xml` reproduced BUG-004 with one test and one failure. The run generated all four files in `target/artifacts/PaywallTest/testPaywallStatePreservedAfterRotation_5178673636979808120/`. The 2400 × 1080 screenshot captured landscape, the page source parsed as XML, and the 1,115-line Logcat contained the matching markers and application records. Surefire and the stack trace retained the original Selenium TimeoutException and its cause. Portrait restoration and driver termination completed, and cleanup checks found zero diagnostic ADB commands, temporary log spools, UiAutomator2 processes, and ADB port forwards.
+- Live validation covered the Android 14 startup and rotation cases. Crash and ANR result propagation used synthetic records, and the regression and full suites used dry runs. Appium and ADB must see the same device. Screenshot and page source capture require a reachable session, and Android's circular buffers limit log retention.
+
+**Human Review & Comments:**
+
+*Reviewed, no changes required*
+
 ---
