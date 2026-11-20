@@ -2459,4 +2459,10 @@ Provide a concise implementation summary.[@SplashTest.java](file:///Users/vadyms
 
 **Human Review & Comments:**
 
+*Reviewed*
+
+TO DO:
+
+- Refactor a RecyclerView according to the different screen sizes
+
 ---
